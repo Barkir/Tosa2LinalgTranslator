@@ -11,7 +11,9 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Parser/Parser.h"
+
 #include "llvm/Support/SourceMgr.h"
+#include "mlir/Transforms/DialectConversion.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -21,6 +23,7 @@
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
 
 #include "err.hpp"
+#include "typeConverter.hpp"
 
 #include <fstream>
 #include <memory>
@@ -99,7 +102,11 @@ private:
     const inline static std::unordered_map<std::string, translatorFuncPointer> tosaToLinalgMap = {
         {"tosa.add",    &MLIRDialectTranslator::createTosaToLinalgAdd},
         {"func.return", &MLIRDialectTranslator::createTosaToLinalgReturn},
-};
+    };
+
+private:
+    TosaToLinalgTypeConverter typeConverter;
+
 
 
 };

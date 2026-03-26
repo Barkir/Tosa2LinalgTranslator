@@ -3,6 +3,14 @@
 mlir::ModuleOp MLIRDialectTranslator::translateTOSATOLINALG(mlir::ModuleOp& module) {
     auto loc = builder_.getUnknownLoc();
 
+    mlir::ConversionTarget target(ctx_);
+
+    target.addIllegalDialect<mlir::tosa::TosaDialect>();
+    target.addLegalDialect<mlir::linalg::LinalgDialect>();
+    target.addLegalDialect<mlir::func::FuncDialect>();
+    target.addLegalDialect<mlir::tensor::TensorDialect>();
+    target.addLegalDialect<mlir::arith::ArithDialect>();
+
     MSG("Got module to translate ---> ");
     ON_DEBUG(llvm::errs() << module << "\n");
     MSG("-------------------------------------\n");
