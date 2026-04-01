@@ -13,12 +13,14 @@ int main(int argc, char* argv[]) {
     mlir::OwningOpRef<mlir::ModuleOp> module;
     auto result = ms.load(file, module);
     if (mlir::failed(result)) {
-      TranslatorErr(llvm::Twine("Failed to load file: ") + file);
+      llvm::errs() << BG_BRIGHT_RED << "Failed to load file" << file << TOSA2LINALG_RESET << "\n";
+      return -1;
     }
 
     MLIRDialectTranslator translator;
     auto moduleGet = module.get();
-    translator.translate(moduleGet, TranslatorTypes::TOSA_TO_LINALG);
+    // llvm::errs() << moduleGet << "\n";
+    auto translationResult = translator.translate(moduleGet, TranslatorTypes::TOSA_TO_LINALG);
 
     return 0;
 }

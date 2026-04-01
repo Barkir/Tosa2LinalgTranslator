@@ -11,6 +11,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Parser/Parser.h"
+#include "mlir/Dialect/Tosa/IR/TosaOps.h"
 
 #include "llvm/Support/SourceMgr.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -54,21 +55,21 @@ public:
   }
 
 public:
-  mlir::ModuleOp translateTOSATOLINALG(mlir::ModuleOp &module);
+    mlir::LogicalResult translateTOSATOLINALG(mlir::ModuleOp& module);
 
 public:
-    std::optional<mlir::ModuleOp> translate(mlir::ModuleOp& module, TranslatorTypes type) {
+    mlir::LogicalResult translate(mlir::ModuleOp& module, TranslatorTypes type) {
         switch (type) {
             case TranslatorTypes::TOSA_TO_LINALG:
             {
-                auto new_module = translateTOSATOLINALG(module);
-                return std::optional<mlir::ModuleOp>(new_module);
+                MSG("TOSA-TO-LINALG TRANSLATION\n");
+                return translateTOSATOLINALG(module);
             }
 
             default:
             {
                 errs.setErrorCode(TranslatorErrorCode::UNKNOWN_TRANSLATOR_TYPE);
-                return std::nullopt;
+                return mlir::failure();
             }
 
         }
@@ -79,6 +80,16 @@ public: // static methods for translation
 
 public: // mlir-specific
     mlir::func::FuncOp createEmptyFunc(mlir::Location loc, mlir::func::FuncOp& old_func);
+    void setDialects(mlir::ConversionTarget& target);
+    void setPatterns(mlir::RewritePatternSet& patterns, mlir::TypeConverter& converter);
+    mlir::TypeConverter createTosaToLinalgTypeConverter();
+    mlir::Value createZeroTensor(mlir::RankedTensorType type, llvm::SmallVector<mlir::Value> dims);
+
+    // static ones // --- ---
+    static llvm::SmallVector<mlir::Value> condenseValues(llvm::SmallVector<mlir::Value>& values);
+    static mlir::Value createZeroTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, llvm::SmallVector<mlir::Value> dims);
+    // -----------------------------------------------------------------------------------------------------
+
 
 public:
     TranslatorErrorCode getErrorCode() { return errs.getErrorCode(); }
@@ -105,7 +116,7 @@ private:
     };
 
 private:
-    TosaToLinalgTypeConverter typeConverter;
+    // TosaToLinalgTypeConverter typeConverter;
 
 
 

@@ -23,7 +23,10 @@ mlir::LogicalResult MLIRModuleSerializer::load(llvm::StringRef fname, mlir::Owni
 
   sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
   module = mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &context_);
-
+  if (!module) {
+    MSG("Failed to parse module\n");
+    return mlir::failure();
+  }
   // llvm::errs() << "Got smth with name " << parsed.get()->getName() << "\n";
 
   TranslatorGreen("Successfuly loaded file to func!");
