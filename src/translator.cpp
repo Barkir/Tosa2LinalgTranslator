@@ -8,6 +8,7 @@ struct NegateOpConversion : public mlir::OpConversionPattern<mlir::tosa::NegateO
     using OpConversionPattern<mlir::tosa::NegateOp>::OpConversionPattern;
     mlir::LogicalResult matchAndRewrite(mlir::tosa::NegateOp op, OpAdaptor adaptor,
                                         mlir::ConversionPatternRewriter& rewriter) const override {
+        MSG("TOSA-TO-LINALG : NEGATE\n");
         auto loc = rewriter.getUnknownLoc();
         mlir::Value res = adaptor.getInput1();
 
@@ -18,12 +19,14 @@ struct NegateOpConversion : public mlir::OpConversionPattern<mlir::tosa::NegateO
             return rewriter.notifyMatchFailure(op, "not a ranked tensor");
         }
 
+        auto args = adaptor.getOperands();
+
         auto eltype = resType.getElementType();
         if (mlir::isa<mlir::FloatType>(eltype)) {
             newOp = rewriter.create<mlir::arith::NegFOp>(loc, resType, res);
-        } else if (mlir::isa<mlir::IntegerType>(eltype)) {
-
         }
+
+        // add integer type
 
         return mlir::success();
     }
@@ -191,15 +194,14 @@ mlir::LogicalResult MLIRDialectTranslator::translateTOSATOLINALG(mlir::ModuleOp&
         return mlir::failure();
     }
 
-    MSG("1\n");
+    loadDialects(modCtx);
+
     mlir::ConversionTarget target(*modCtx);
-    MSG("2\n");
     mlir::RewritePatternSet patterns(modCtx);
-    MSG("3\n");
     mlir::TypeConverter typeConverter = createTosaToLinalgTypeConverter();
     MSG("SET CONVERSION TARGET, REWRITER PATTERNS, TYPE CONVERTER\n");
 
-    setDialects(target);
+    setDialectsLegality(target);
     setPatterns(patterns, typeConverter);
 
     MSG("SET ILLEGAL/LEGAL DIALECTS, PATTERNS");
@@ -227,6 +229,14 @@ mlir::LogicalResult MLIRDialectTranslator::translateTOSATOLINALG(mlir::ModuleOp&
 // -------------------------------------------
 //              mlir - specific
 // -------------------------------------------
+
+void MLIRDialectTranslator::loadDialects(mlir::MLIRContext* ctx) {
+    ctx->loadDialect<mlir::arith::ArithDialect>();
+    ctx->loadDialect<mlir::tensor::TensorDialect>();
+    ctx->loadDialect<mlir::func::FuncDialect>();
+    ctx->loadDialect<mlir::linalg::LinalgDialect>();
+    ctx->loadDialect<mlir::tosa::TosaDialect>();
+}
 
 mlir::TypeConverter MLIRDialectTranslator::createTosaToLinalgTypeConverter() {
     mlir::TypeConverter converter;
@@ -320,7 +330,8 @@ llvm::SmallVector<mlir::Value> MLIRDialectTranslator::condenseValues(llvm::Small
     return retVec;
 }
 
-void MLIRDialectTranslator::setDialects(mlir::ConversionTarget& target) {
+void MLIRDialectTranslator::setDialectsLegality(mlir::ConversionTarget& target) {
+
     target.addIllegalDialect<mlir::tosa::TosaDialect>();
 
     target.addLegalDialect<mlir::linalg::LinalgDialect>();
@@ -345,6 +356,7 @@ void MLIRDialectTranslator::setDialects(mlir::ConversionTarget& target) {
 
 void MLIRDialectTranslator::setPatterns(mlir::RewritePatternSet& patterns, mlir::TypeConverter& converter) {
     patterns.add<AddOpConversion>(converter, patterns.getContext());
+    patterns.add<NegateOpConversion>(converter, patterns.getContext());
     patterns.add<SubOpConversion>(converter, patterns.getContext());
     patterns.add<MulOpConversion>(converter, patterns.getContext());
     patterns.add<MatMulConversion>(converter, patterns.getContext());

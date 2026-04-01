@@ -206,7 +206,7 @@ set_source_files_properties(
 # ============================================================================
 # Main Executable
 # ============================================================================
-add_executable(tosa2linalg src/main.cpp)
+add_executable(tosa2linalg main.cpp)
 
 target_link_libraries(tosa2linalg PRIVATE tosa2linalg_core)
 
@@ -256,7 +256,7 @@ if(TOSA2LINALG_BUILD_TESTS)
         message(WARNING "No test files found in tests/ directory")
     endif()
 
-    set(TOSA2LINALG_TEST_DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/data)
+    set(TOSA2LINALG_TEST_DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     if(EXISTS ${TOSA2LINALG_TEST_DATA_DIR})
         target_compile_definitions(tosa2linalg_tests PRIVATE
             TOSA2LINALG_TEST_DATA_DIR="${TOSA2LINALG_TEST_DATA_DIR}"

@@ -54,6 +54,8 @@ public:
     ctx_.loadDialect<mlir::tosa::TosaDialect>();
   }
 
+
+
 public:
     mlir::LogicalResult translateTOSATOLINALG(mlir::ModuleOp& module);
 
@@ -79,8 +81,9 @@ public: // static methods for translation
 
 
 public: // mlir-specific
+    void loadDialects(mlir::MLIRContext* ctx);
     mlir::func::FuncOp createEmptyFunc(mlir::Location loc, mlir::func::FuncOp& old_func);
-    void setDialects(mlir::ConversionTarget& target);
+    void setDialectsLegality(mlir::ConversionTarget& target);
     void setPatterns(mlir::RewritePatternSet& patterns, mlir::TypeConverter& converter);
     mlir::TypeConverter createTosaToLinalgTypeConverter();
     mlir::Value createZeroTensor(mlir::RankedTensorType type, llvm::SmallVector<mlir::Value> dims);
