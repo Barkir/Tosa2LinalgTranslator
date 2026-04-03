@@ -22,5 +22,7 @@ int main(int argc, char* argv[]) {
     // llvm::errs() << moduleGet << "\n";
     auto translationResult = translator.translate(moduleGet, TranslatorTypes::TOSA_TO_LINALG);
 
+    llvm::errs() << "now module looks like: " << moduleGet << "\n";
+
     return 0;
 }

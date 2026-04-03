@@ -91,6 +91,7 @@ public: // mlir-specific
     // static ones // --- ---
     static llvm::SmallVector<mlir::Value> condenseValues(llvm::SmallVector<mlir::Value>& values);
     static mlir::Value createZeroTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, llvm::SmallVector<mlir::Value> dims);
+    static mlir::Value createEmptyTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type);
     // -----------------------------------------------------------------------------------------------------
 
 
@@ -98,25 +99,15 @@ public:
     TranslatorErrorCode getErrorCode() { return errs.getErrorCode(); }
     void printErrorCode(void) { return errs.printErrorCode(); }
 
-public: // tosa-to-linalg translation
-
-    void tosaToLinalgOp(mlir::Operation& op);
-    void createTosaToLinalgAdd(mlir::Operation& op);
-    void createTosaToLinalgMul(mlir::Operation& op);
-    void createTosaToLinalgClamp(mlir::Operation& op);
-    void createTosaToLinalgSub(mlir::Operation& op);
-    void createTosaToLinalgMatMul(mlir::Operation& op);
-    void createTosaToLinalgReturn(mlir::Operation& op);
-
 // -------------------------------------------------------------------------
     using translatorFuncPointer = void (MLIRDialectTranslator::*)(mlir::Operation&);
 // -------------------------------------------------------------------------
 
 private:
-    const inline static std::unordered_map<std::string, translatorFuncPointer> tosaToLinalgMap = {
-        {"tosa.add",    &MLIRDialectTranslator::createTosaToLinalgAdd},
-        {"func.return", &MLIRDialectTranslator::createTosaToLinalgReturn},
-    };
+    // const inline static std::unordered_map<std::string, translatorFuncPointer> tosaToLinalgMap = {
+    //     {"tosa.add",    &MLIRDialectTranslator::createTosaToLinalgAdd},
+    //     {"func.return", &MLIRDialectTranslator::createTosaToLinalgReturn},
+    // };
 
 private:
     // TosaToLinalgTypeConverter typeConverter;
