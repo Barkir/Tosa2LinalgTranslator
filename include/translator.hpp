@@ -12,6 +12,7 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Dialect/Tosa/IR/TosaOps.h"
+#include "mlir/Dialect/Tosa/Utils/ConversionUtils.h"
 
 #include "llvm/Support/SourceMgr.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -91,7 +92,8 @@ public: // mlir-specific
     // static ones // --- ---
     static llvm::SmallVector<mlir::Value> condenseValues(llvm::SmallVector<mlir::Value>& values);
     static mlir::Value createZeroTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, llvm::SmallVector<mlir::Value> dims);
-    static mlir::Value createEmptyTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type);
+    static mlir::Value createEmptyTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, mlir::Value input);
+    static llvm::SmallVector<mlir::AffineMap> getAffineMaps(mlir::ValueRange operands, mlir::RankedTensorType resType, mlir::PatternRewriter& rewriter);
     // -----------------------------------------------------------------------------------------------------
 
 

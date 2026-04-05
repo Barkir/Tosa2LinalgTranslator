@@ -41,6 +41,7 @@ struct MulOpConversion : public mlir::OpConversionPattern<mlir::tosa::MulOp> {
 
         mlir::Value lhs = adaptor.getInput1();
         mlir::Value rhs = adaptor.getInput2();
+        auto operands = mlir::ValueRange{lhs, rhs};
 
         mlir::Operation* newOp = nullptr;
 
@@ -49,12 +50,29 @@ struct MulOpConversion : public mlir::OpConversionPattern<mlir::tosa::MulOp> {
             return rewriter.notifyMatchFailure(op, "not a ranked tensor");
         }
 
-        auto eltype = resType.getElementType();
-        if (mlir::isa<mlir::FloatType>(eltype)) {
-            newOp = rewriter.create<mlir::arith::MulFOp>(loc, lhs, rhs);
-        } else if (mlir::isa<mlir::IntegerType>(eltype)) {
-            newOp = rewriter.create<mlir::arith::MulIOp>(loc, lhs, rhs);
-        }
+        auto output = MLIRDialectTranslator::createEmptyTensor(rewriter, resType, lhs);
+        auto affineMaps = MLIRDialectTranslator::getAffineMaps(operands, resType, rewriter);
+
+        auto genericOp = rewriter.create<mlir::linalg::GenericOp>(
+            loc,
+            resType,
+            mlir::ValueRange{lhs, rhs},
+            mlir::ValueRange{output},
+            affineMaps,
+            mlir::tosa::getNParallelLoopsAttrs(static_cast<unsigned>(resType.getRank())),
+            [&](mlir::OpBuilder &b, mlir::Location l, mlir::ValueRange args) {
+                auto lh = args[0];
+                auto rh = args[1];
+                mlir::Value res;
+
+                auto eltype = lh.getType();
+                if (mlir::isa<mlir::FloatType>(eltype)) {
+                    res = b.create<mlir::arith::MulFOp>(l, lh, rh);
+                } else if (mlir::isa<mlir::IntegerType>(eltype)) {
+                    res = b.create<mlir::arith::MulIOp>(l, lh, rh);
+                }
+                b.create<mlir::linalg::YieldOp>(l, res);
+            });
 
         if (!newOp) return mlir::failure();
 
@@ -72,6 +90,7 @@ struct SubOpConversion : public mlir::OpConversionPattern<mlir::tosa::SubOp> {
 
         mlir::Value lhs = adaptor.getInput1();
         mlir::Value rhs = adaptor.getInput2();
+        auto operands = mlir::ValueRange{lhs, rhs};
 
         mlir::Operation* newOp = nullptr;
 
@@ -80,12 +99,29 @@ struct SubOpConversion : public mlir::OpConversionPattern<mlir::tosa::SubOp> {
             return rewriter.notifyMatchFailure(op, "not a ranked tensor");
         }
 
-        auto eltype = resType.getElementType();
-        if (mlir::isa<mlir::FloatType>(eltype)) {
-            newOp = rewriter.create<mlir::arith::SubFOp>(loc, lhs, rhs);
-        } else if (mlir::isa<mlir::IntegerType>(eltype)) {
-            newOp = rewriter.create<mlir::arith::SubIOp>(loc, lhs, rhs);
-        }
+        auto output = MLIRDialectTranslator::createEmptyTensor(rewriter, resType, lhs);
+        auto affineMaps = MLIRDialectTranslator::getAffineMaps(operands, resType, rewriter);
+
+        auto genericOp = rewriter.create<mlir::linalg::GenericOp>(
+            loc,
+            resType,
+            mlir::ValueRange{lhs, rhs},
+            mlir::ValueRange{output},
+            affineMaps,
+            mlir::tosa::getNParallelLoopsAttrs(static_cast<unsigned>(resType.getRank())),
+            [&](mlir::OpBuilder &b, mlir::Location l, mlir::ValueRange args) {
+                auto lh = args[0];
+                auto rh = args[1];
+                mlir::Value res;
+
+                auto eltype = lh.getType();
+                if (mlir::isa<mlir::FloatType>(eltype)) {
+                    res = b.create<mlir::arith::SubFOp>(l, lh, rh).getResult();
+                } else if (mlir::isa<mlir::IntegerType>(eltype)) {
+                    res = b.create<mlir::arith::SubIOp>(l, lh, rh).getResult();
+                }
+                b.create<mlir::linalg::YieldOp>(l, res);
+            });
 
         if (!newOp) return mlir::failure();
 
@@ -104,6 +140,7 @@ struct AddOpConversion : public mlir::OpConversionPattern<mlir::tosa::AddOp> {
 
         mlir::Value lhs = adaptor.getInput1();
         mlir::Value rhs = adaptor.getInput2();
+        auto operands = mlir::ValueRange{lhs, rhs};
 
 
         mlir::Operation* newOp = nullptr;
@@ -113,19 +150,16 @@ struct AddOpConversion : public mlir::OpConversionPattern<mlir::tosa::AddOp> {
             return rewriter.notifyMatchFailure(op, "not a ranked tensor");
         }
 
-        auto output = MLIRDialectTranslator::createEmptyTensor(rewriter, resType);
-
-        llvm::SmallVector<mlir::utils::IteratorType> iterators(resType.getRank(), mlir::utils::IteratorType::parallel);
-        auto affineMaps = mlir::AffineMap::getMultiDimIdentityMap(static_cast<unsigned>(resType.getRank()), rewriter.getContext());
-        llvm::SmallVector<mlir::AffineMap> maps(3, affineMaps);
+        auto output = MLIRDialectTranslator::createEmptyTensor(rewriter, resType, lhs);
+        auto affineMaps = MLIRDialectTranslator::getAffineMaps(operands, resType, rewriter);
 
         auto genericOp = rewriter.create<mlir::linalg::GenericOp>(
             loc,
             resType,
             mlir::ValueRange{lhs, rhs},
             mlir::ValueRange{output},
-            maps,
-            iterators,
+            affineMaps,
+            mlir::tosa::getNParallelLoopsAttrs(static_cast<unsigned>(resType.getRank())),
             [&](mlir::OpBuilder &b, mlir::Location l, mlir::ValueRange args) {
                 auto lh = args[0];
                 auto rh = args[1];
@@ -133,9 +167,9 @@ struct AddOpConversion : public mlir::OpConversionPattern<mlir::tosa::AddOp> {
 
                 auto eltype = lh.getType();
                 if (mlir::isa<mlir::FloatType>(eltype)) {
-                    res = b.create<mlir::arith::AddFOp>(l, lh, rh);
+                    res = b.create<mlir::arith::AddFOp>(l, lh, rh).getResult();
                 } else if (mlir::isa<mlir::IntegerType>(eltype)) {
-                    res = b.create<mlir::arith::AddIOp>(l, lh, rh);
+                    res = b.create<mlir::arith::AddIOp>(l, lh, rh).getResult();
                 }
                 b.create<mlir::linalg::YieldOp>(l, res);
             });
@@ -241,7 +275,17 @@ mlir::LogicalResult MLIRDialectTranslator::translateTOSATOLINALG(mlir::ModuleOp&
     }
 
     TranslatorGreen("/ / / / / / / / RESULT / / / / / / / /\n");
-    llvm::errs() << module << "\n";
+    std::string output;
+    llvm::raw_string_ostream os(output);
+    mlir::OpPrintingFlags flags;
+    flags.printGenericOpForm(false);
+
+    for (auto d : (module.getContext())->getLoadedDialects()) {
+        llvm::errs() << d->getNamespace() << "\n";
+    }
+
+    module.print(os, flags);
+    llvm::errs() << output << "\n";
     TranslatorGreen("---------------------------------------\n");
     return mlir::success();
 
@@ -257,6 +301,7 @@ void MLIRDialectTranslator::loadDialects(mlir::MLIRContext* ctx) {
     ctx->loadDialect<mlir::func::FuncDialect>();
     ctx->loadDialect<mlir::linalg::LinalgDialect>();
     ctx->loadDialect<mlir::tosa::TosaDialect>();
+    ctx->loadAllAvailableDialects();
 }
 
 mlir::TypeConverter MLIRDialectTranslator::createTosaToLinalgTypeConverter() {
@@ -300,15 +345,40 @@ mlir::TypeConverter MLIRDialectTranslator::createTosaToLinalgTypeConverter() {
     return converter;
 }
 
-mlir::Value MLIRDialectTranslator::createEmptyTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type) {
+mlir::Value MLIRDialectTranslator::createEmptyTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, mlir::Value input) {
+    llvm::SmallVector<mlir::Value> dynamicSizes;
     auto loc = rewriter.getUnknownLoc();
+
+    for (auto en : llvm::enumerate(type.getShape())) {
+        if (mlir::ShapedType::isDynamic(en.value())) {
+            auto dimOp = rewriter.create<mlir::tensor::DimOp>(loc, input, en.index());
+            dynamicSizes.push_back(dimOp);
+        }
+    }
     auto value = rewriter.create<mlir::tensor::EmptyOp>(
         loc,
-        type.getShape(),
-        type.getElementType()
+        type,
+        dynamicSizes
     );
 
     return value;
+}
+
+
+llvm::SmallVector<mlir::AffineMap> MLIRDialectTranslator::getAffineMaps(mlir::ValueRange operands, mlir::RankedTensorType resType, mlir::PatternRewriter& rewriter) {
+    auto rank = static_cast<unsigned>(resType.getRank());
+    auto affineMaps = llvm::map_to_vector(operands, [&](mlir::Value operand) {
+    auto shape = mlir::cast<mlir::ShapedType>(operand.getType()).getShape();
+    llvm::SmallVector<mlir::AffineExpr> affineExprs;
+    for (auto it : llvm::enumerate(shape)) {
+        bool requiresBroadcast = (it.value() == 1 && resType.getDimSize(static_cast<unsigned>(it.index())) != 1);
+        auto affineExpr = requiresBroadcast ? rewriter.getAffineConstantExpr(0) : rewriter.getAffineDimExpr(static_cast<unsigned>(it.index()));
+            affineExprs.push_back(affineExpr);
+        }
+        return mlir::AffineMap::get(rank, 0, affineExprs, rewriter.getContext());
+    });
+    affineMaps.push_back(rewriter.getMultiDimIdentityMap(rank));
+    return affineMaps;
 }
 
 mlir::Value MLIRDialectTranslator::createZeroTensor(mlir::RankedTensorType type, llvm::SmallVector<mlir::Value> dims) {
