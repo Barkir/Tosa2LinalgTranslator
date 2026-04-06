@@ -187,8 +187,8 @@ struct MatMulConversion : public mlir::OpConversionPattern<mlir::tosa::MatMulOp>
         MSG("TOSA-TO-LINALG: MATMUL\n");
         auto loc = rewriter.getUnknownLoc();
 
-        mlir::Value lhs = adaptor.getB();
-        mlir::Value rhs = adaptor.getA();
+        mlir::Value lhs = adaptor.getA();
+        mlir::Value rhs = adaptor.getB();
 
         MSG("GOT LHS AND RHS\n");
         auto resType = mlir::dyn_cast<mlir::RankedTensorType>(op.getType());
@@ -219,8 +219,10 @@ struct MatMulConversion : public mlir::OpConversionPattern<mlir::tosa::MatMulOp>
         MSG("FILTERING DIMS\n");
         auto filteredDims = MLIRDialectTranslator::condenseValues(dynamicDims);
 
+        LOG("got filteredDims with size {}\n", filteredDims.size());
+
         MSG("CREATING ZERO TENSOR\n");
-        auto zeroTensor = MLIRDialectTranslator::createZeroTensor(rewriter, resType, filteredDims);
+        auto zeroTensor = MLIRDialectTranslator::createZeroTensor(rewriter, resType, lhs);
 
         rewriter.replaceOpWithNewOp<mlir::linalg::BatchMatmulOp>(
         op, mlir::TypeRange{op.getType()},
@@ -385,17 +387,17 @@ mlir::Value MLIRDialectTranslator::createZeroTensor(mlir::RankedTensorType type,
     auto loc = builder_.getUnknownLoc();
     auto zeroAttr = builder_.getZeroAttr(type.getElementType());
     mlir::Value zero = builder_.create<mlir::arith::ConstantOp>(loc, zeroAttr);
-    auto emptyTensor = builder_.create<mlir::tensor::EmptyOp>(loc, type.getShape(), type.getElementType(), dims);
+    auto emptyTensor = builder_.create<mlir::tensor::EmptyOp>(loc, type, dims);
     auto zeroTensor = builder_.create<mlir::linalg::FillOp>(loc, mlir::ValueRange{zero}, mlir::ValueRange{emptyTensor}).result();
 
     return zeroTensor;
 }
 
-mlir::Value MLIRDialectTranslator::createZeroTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, llvm::SmallVector<mlir::Value> dims) {
+mlir::Value MLIRDialectTranslator::createZeroTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, mlir::Value input) {
     auto loc = rewriter.getUnknownLoc();
     auto zeroAttr       = rewriter.getZeroAttr(type.getElementType());
     mlir::Value zero    = rewriter.create<mlir::arith::ConstantOp>(loc, zeroAttr);
-    auto emptyTensor    = rewriter.create<mlir::tensor::EmptyOp>(loc, type.getShape(), type.getElementType(), dims);
+    auto emptyTensor    = MLIRDialectTranslator::createEmptyTensor(rewriter, type, input);
     auto zeroTensor     = rewriter.create<mlir::linalg::FillOp>(loc, mlir::ValueRange{zero}, mlir::ValueRange{emptyTensor}).result();
     return zeroTensor;
 }

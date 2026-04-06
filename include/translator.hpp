@@ -91,7 +91,8 @@ public: // mlir-specific
 
     // static ones // --- ---
     static llvm::SmallVector<mlir::Value> condenseValues(llvm::SmallVector<mlir::Value>& values);
-    static mlir::Value createZeroTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, llvm::SmallVector<mlir::Value> dims);
+
+    static mlir::Value createZeroTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, mlir::Value input);
     static mlir::Value createEmptyTensor(mlir::PatternRewriter& rewriter, mlir::RankedTensorType type, mlir::Value input);
     static llvm::SmallVector<mlir::AffineMap> getAffineMaps(mlir::ValueRange operands, mlir::RankedTensorType resType, mlir::PatternRewriter& rewriter);
     // -----------------------------------------------------------------------------------------------------
