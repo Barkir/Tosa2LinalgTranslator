@@ -2,6 +2,9 @@
 #include "file.hpp"
 #include "translator.hpp"
 
+#include <fstream>
+#include <filesystem>
+
 int main(int argc, char* argv[]) {
     mlir::MLIRContext context;
     MLIRModuleSerializer ms(context);
@@ -21,8 +24,14 @@ int main(int argc, char* argv[]) {
     auto moduleGet = module.get();
     // llvm::errs() << moduleGet << "\n";
     auto translationResult = translator.translate(moduleGet, TranslatorTypes::TOSA_TO_LINALG);
-
-    llvm::errs() << "now module looks like: " << moduleGet << "\n";
+    // llvm::errs() << "now module looks like: " << moduleGet << "\n";
+    if (mlir::succeeded(translationResult)) {
+      auto name = std::filesystem::path(file.str());
+      name.replace_filename(name.stem().string() + "_t2l.ll");
+      std::error_code EC;
+      llvm::raw_fd_ostream os(llvm::StringRef(name.string()), EC);
+      moduleGet.print(os);
+    }
 
     return 0;
 }

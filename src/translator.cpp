@@ -4,6 +4,20 @@
 //              Translator classes
 // --------------------------------------------------
 
+// mlir::LogicalResult helpMatchAndRewriteElementWiseOp(mlir::ConversionPatternRewriter& rewriter, Operation* op)
+//
+// template <typename ElementWiseOp>
+// struct ElementWiseConverter : public mlir::OpConversionPattern<ElementWiseOp> {
+// public:
+//     using OpConversionPattern<SrcOp>::OpConversionPattern;
+//     using typename OpConversionPattern<ElementWiseOp>::OpAdaptor;
+//
+//     mlir::LogicalResult matchAndRewrite(ElementWiseOp op, OpAdaptor adaptor,
+//                                         mlir::ConversionPatternRewriter& rewriter) const override {
+//         return helpMatchAndRewriteElementWiseOp(rewriter, op, adaptor.getOperands());
+//     }
+// }
+
 struct NegateOpConversion : public mlir::OpConversionPattern<mlir::tosa::NegateOp> {
     using OpConversionPattern<mlir::tosa::NegateOp>::OpConversionPattern;
     mlir::LogicalResult matchAndRewrite(mlir::tosa::NegateOp op, OpAdaptor adaptor,
@@ -43,8 +57,6 @@ struct MulOpConversion : public mlir::OpConversionPattern<mlir::tosa::MulOp> {
         mlir::Value rhs = adaptor.getInput2();
         auto operands = mlir::ValueRange{lhs, rhs};
 
-        mlir::Operation* newOp = nullptr;
-
         auto resType = mlir::dyn_cast<mlir::RankedTensorType>(op.getType());
         if (!resType) {
             return rewriter.notifyMatchFailure(op, "not a ranked tensor");
@@ -74,9 +86,8 @@ struct MulOpConversion : public mlir::OpConversionPattern<mlir::tosa::MulOp> {
                 b.create<mlir::linalg::YieldOp>(l, res);
             });
 
-        if (!newOp) return mlir::failure();
 
-        rewriter.replaceOp(op, newOp->getResults());
+        rewriter.replaceOp(op, genericOp->getResults());
         return mlir::success();
     }
 };
@@ -91,8 +102,6 @@ struct SubOpConversion : public mlir::OpConversionPattern<mlir::tosa::SubOp> {
         mlir::Value lhs = adaptor.getInput1();
         mlir::Value rhs = adaptor.getInput2();
         auto operands = mlir::ValueRange{lhs, rhs};
-
-        mlir::Operation* newOp = nullptr;
 
         auto resType = mlir::dyn_cast<mlir::RankedTensorType>(op.getType());
         if (!resType) {
@@ -123,9 +132,8 @@ struct SubOpConversion : public mlir::OpConversionPattern<mlir::tosa::SubOp> {
                 b.create<mlir::linalg::YieldOp>(l, res);
             });
 
-        if (!newOp) return mlir::failure();
 
-        rewriter.replaceOp(op, newOp->getResults());
+        rewriter.replaceOp(op, genericOp->getResults());
         return mlir::success();
     }
 };
@@ -141,9 +149,6 @@ struct AddOpConversion : public mlir::OpConversionPattern<mlir::tosa::AddOp> {
         mlir::Value lhs = adaptor.getInput1();
         mlir::Value rhs = adaptor.getInput2();
         auto operands = mlir::ValueRange{lhs, rhs};
-
-
-        mlir::Operation* newOp = nullptr;
 
         auto resType = mlir::dyn_cast<mlir::RankedTensorType>(op.getType());
         if (!resType) {
