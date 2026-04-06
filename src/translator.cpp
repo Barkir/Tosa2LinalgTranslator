@@ -18,6 +18,109 @@
 //     }
 // }
 
+// struct Conv2DConversion : public mlir::OpConversionPattern<mlir::tosa::Conv2DOp> {
+//     using OpConversionPattern<mlir::tosa::Conv2DOp>::OpConversionPattern;
+//     mlir::LogicalResult matchAndRewrite(mlir::tosa::Conv2DOp op, OpAdaptor adaptor,
+//                                         mlir::ConversionPatternRewriter& rewriter) const override {
+//         MSG("TOSA-TO-LINALG : CONV2D");
+//         auto loc = rewriter.getUnknownLoc();
+//         auto input = adaptor.getInput();
+//         auto weight = adaptor.getWeight();
+//         auto bias = adaptor.getBias();
+//
+//         auto pad = op.getPadAttr();
+//         auto stride = op.getStrideAttr();
+//         auto dilation = op.getDilationAttr();
+//
+//         // tosa::Conv2D uses nhwc layout by default, so we generate linalgConv
+//         auto linalgConv = rewriter.create<mlir::linalg::Conv2DNhwcFhwcOp>(
+//             loc
+//         );
+//
+//         return mlir::success();
+//     }
+// };
+
+struct ClampConversion : public mlir::OpConversionPattern<mlir::tosa::ClampOp> {
+    using OpConversionPattern<mlir::tosa::ClampOp>::OpConversionPattern;
+    mlir::LogicalResult matchAndRewrite(mlir::tosa::ClampOp op, OpAdaptor adaptor,
+                                        mlir::ConversionPatternRewriter& rewriter) const override {
+
+        MSG("TOSA-TO-LINALG : RELU\n");
+        auto loc = rewriter.getUnknownLoc();
+        auto input = adaptor.getInput();
+        auto type = mlir::cast<mlir::RankedTensorType>(input.getType());
+        auto eltype = type.getElementType();
+
+        mlir::Value newOp;
+
+        if (mlir::isa<mlir::FloatType>(eltype)) {
+            MSG("GOT FLOAT TYPE IN INPUT\n");
+            auto inputTy = mlir::cast<mlir::TensorType>(input.getType());
+
+            mlir::APFloat minApf = mlir::cast<mlir::FloatAttr>(op->getAttr("min_fp")).getValue();
+            mlir::APFloat maxApf = mlir::cast<mlir::FloatAttr>(op->getAttr("max_fp")).getValue();
+
+            auto minAttr = mlir::DenseElementsAttr::get(
+                inputTy,
+                minApf
+            );
+
+            auto maxAttr = mlir::DenseElementsAttr::get(
+                inputTy,
+                maxApf
+            );
+
+            MSG("GOT minApf, maxApf\n");
+            auto min = rewriter.create<mlir::arith::ConstantOp>(
+                loc, inputTy, minAttr
+            );
+
+            auto max = rewriter.create<mlir::arith::ConstantOp>(
+                loc, inputTy, maxAttr
+            );
+
+            MSG("GOT MAX AND MIN\n");
+            auto result = mlir::tosa::clampFloatHelper(loc, input, min, max, rewriter);
+            mlir::Value isNaN = rewriter.create<mlir::arith::CmpFOp>(
+                op->getLoc(), mlir::arith::CmpFPredicate::UNO, input, input);
+
+
+            auto newFloatOp = rewriter.create<mlir::arith::SelectOp>(op->getLoc(), isNaN, min, result);
+            rewriter.replaceOp(op, newFloatOp);
+            MSG("REPLACED OP\n");
+        } else if (mlir::isa<mlir::IntegerType>(eltype)) {
+            MSG("GOT INPUT TYPE IN INPUT\n");
+            auto intTy = mlir::cast<mlir::IntegerType>(eltype);
+            auto inputTy = mlir::cast<mlir::TensorType>(input.getType());
+
+            int64_t min = mlir::cast<mlir::IntegerAttr>(op->getAttr("min_int")).getValue().getSExtValue();
+            int64_t max = mlir::cast<mlir::IntegerAttr>(op->getAttr("max_int")).getValue().getSExtValue();
+
+            auto minAttr = mlir::DenseElementsAttr::get(
+                inputTy,
+                llvm::APInt(intTy.getIntOrFloatBitWidth(), min, true)
+            );
+
+            auto maxAttr = mlir::DenseElementsAttr::get(
+                inputTy,
+                llvm::APInt(intTy.getIntOrFloatBitWidth(), max, true)
+            );
+
+            auto minVal = rewriter.create<mlir::arith::ConstantOp>(loc, inputTy, minAttr);
+            auto maxVal = rewriter.create<mlir::arith::ConstantOp>(loc, inputTy, maxAttr);
+            MSG("GOT MAX AND MIN\n");
+            auto newIntOp = mlir::tosa::clampIntHelper(loc, input, minVal, maxVal, rewriter,
+                                    intTy.isUnsignedInteger());
+            rewriter.replaceOp(op, newIntOp);
+            MSG("REPLACED OP\n");
+        } else {
+            return mlir::failure();
+        }
+        return mlir::success();
+    }
+};
+
 struct NegateOpConversion : public mlir::OpConversionPattern<mlir::tosa::NegateOp> {
     using OpConversionPattern<mlir::tosa::NegateOp>::OpConversionPattern;
     mlir::LogicalResult matchAndRewrite(mlir::tosa::NegateOp op, OpAdaptor adaptor,
@@ -469,6 +572,7 @@ void MLIRDialectTranslator::setPatterns(mlir::RewritePatternSet& patterns, mlir:
     patterns.add<SubOpConversion>(converter, patterns.getContext());
     patterns.add<MulOpConversion>(converter, patterns.getContext());
     patterns.add<MatMulConversion>(converter, patterns.getContext());
+    patterns.add<ClampConversion>(converter, patterns.getContext());
 
     TranslatorGreen("Got patterns set!");
 }

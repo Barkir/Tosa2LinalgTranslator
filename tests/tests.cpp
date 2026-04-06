@@ -145,6 +145,56 @@ TEST(matmul, LoadWithoutErrors) {
     VerifyIR(moduleGet, check);
 }
 
+TEST(clampf32, LoadWithoutErrors) {
+    auto file = get_file_path("mlir/clamp_f32.ll");
+    auto check = get_checker_path(file);
+
+
+    mlir::MLIRContext context;
+    MLIRModuleSerializer ms(context);
+
+    mlir::OwningOpRef<mlir::ModuleOp> module;
+    auto result = ms.load(file, module);
+    if (mlir::failed(result)) {
+      llvm::errs() << BG_BRIGHT_RED << "Failed to load file" << file << TOSA2LINALG_RESET << "\n";
+      ASSERT_NE(0, 0);
+    }
+
+    MLIRDialectTranslator translator;
+    auto moduleGet = module.get();
+    // llvm::errs() << moduleGet << "\n";
+    auto translationResult = translator.translate(moduleGet, TranslatorTypes::TOSA_TO_LINALG);
+    ASSERT_NE(translationResult.succeeded(), 0);
+
+    VerifyIR(moduleGet, check);
+
+}
+
+TEST(clampi32, LoadWithoutErrors) {
+    auto file = get_file_path("mlir/clamp_i32.ll");
+    auto check = get_checker_path(file);
+
+
+    mlir::MLIRContext context;
+    MLIRModuleSerializer ms(context);
+
+    mlir::OwningOpRef<mlir::ModuleOp> module;
+    auto result = ms.load(file, module);
+    if (mlir::failed(result)) {
+      llvm::errs() << BG_BRIGHT_RED << "Failed to load file" << file << TOSA2LINALG_RESET << "\n";
+      ASSERT_NE(0, 0);
+    }
+
+    MLIRDialectTranslator translator;
+    auto moduleGet = module.get();
+    // llvm::errs() << moduleGet << "\n";
+    auto translationResult = translator.translate(moduleGet, TranslatorTypes::TOSA_TO_LINALG);
+    ASSERT_NE(translationResult.succeeded(), 0);
+
+    VerifyIR(moduleGet, check);
+
+}
+
 // TEST(qmatmul, LoadWithoutErrors) {
 //     auto file = get_file_path("mlir/matmul_quantized.ll");
 //     auto check = get_checker_path(file);
